@@ -23,28 +23,39 @@ class ToDoViewModel(application: Application) : AndroidViewModel(application) {
                 text = cleaned,
                 done = false,
             ),
-        ) + state.items
+        ) + state.openItems + state.doneItems
 
-        state = state.copy(items = nextItems)
-        persist(nextItems)
+        updateItems(nextItems)
     }
 
     fun moveTodo(fromIndex: Int, toIndex: Int) {
         if (fromIndex == toIndex) return
-        val items = state.items.toMutableList()
-        if (fromIndex !in items.indices || toIndex !in items.indices) return
+        val open = state.openItems.toMutableList()
+        if (fromIndex !in open.indices || toIndex !in open.indices) return
 
-        val item = items.removeAt(fromIndex)
-        items.add(toIndex, item)
-        updateItems(items)
+        val item = open.removeAt(fromIndex)
+        open.add(toIndex, item)
+        updateItems(open + state.doneItems)
     }
 
     fun toggleTodo(id: Long) {
-        updateItems(
-            state.items.map { item ->
-                if (item.id == id) item.copy(done = !item.done) else item
-            },
-        )
+        val open = state.openItems.toMutableList()
+        val done = state.doneItems.toMutableList()
+
+        val openIndex = open.indexOfFirst { it.id == id }
+        if (openIndex >= 0) {
+            val item = open.removeAt(openIndex)
+            done.add(item.copy(done = true))
+            updateItems(open + done)
+            return
+        }
+
+        val doneIndex = done.indexOfFirst { it.id == id }
+        if (doneIndex >= 0) {
+            val item = done.removeAt(doneIndex)
+            open.add(0, item.copy(done = false))
+            updateItems(open + done)
+        }
     }
 
     fun deleteTodo(id: Long) {
@@ -81,13 +92,14 @@ class ToDoViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun updateItems(items: List<TodoItem>) {
-        state = state.copy(items = items)
-        persist(items)
+        val next = items.normalizedForTabs()
+        state = state.copy(items = next)
+        persist(next)
     }
 
     private fun loadState(): ToDoUiState = runCatching {
         if (!storeFile.exists()) return ToDoUiState()
-        ToDoUiState(items = todoItemsFromJson(storeFile.readText()))
+        ToDoUiState(items = todoItemsFromJson(storeFile.readText()).normalizedForTabs())
     }.getOrDefault(ToDoUiState())
 
     private fun persist(items: List<TodoItem>) {

@@ -41,6 +41,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -48,7 +50,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -56,14 +57,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.consumeAllChanges
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
-import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 @Composable
@@ -78,15 +75,19 @@ fun ToDoScreen(
     onSaveEdit: () -> Unit,
     onCancelEdit: () -> Unit,
 ) {
-    val openCount = state.items.count { !it.done }
-    val doneCount = state.items.count { it.done }
-    val listState = rememberLazyListState()
+    val openCount = state.openCount
+    val doneCount = state.doneCount
+    var selectedTab by remember { mutableStateOf(TodoTab.OPEN) }
     var showAddDialog by remember { mutableStateOf(false) }
     var addDraft by remember { mutableStateOf("") }
 
-    Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
-    ) { padding ->
+    val listItems = when (selectedTab) {
+        TodoTab.OPEN -> state.openItems
+        TodoTab.DONE -> state.doneItems
+    }
+    val listState = rememberLazyListState()
+
+    Scaffold(containerColor = MaterialTheme.colorScheme.background) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -96,18 +97,33 @@ fun ToDoScreen(
         ) {
             HeaderCard(openCount = openCount, doneCount = doneCount)
             AddTodoButton(onClick = { showAddDialog = true })
+            TabBar(
+                selectedTab = selectedTab,
+                openCount = openCount,
+                doneCount = doneCount,
+                onTabSelected = { selectedTab = it },
+            )
 
-            if (state.items.isEmpty()) {
+            if (listItems.isEmpty()) {
                 EmptyStateCard()
             } else {
-                ReorderableTodoList(
-                    items = state.items,
-                    listState = listState,
-                    onMoveTodo = onMoveTodo,
-                    onToggleTodo = onToggleTodo,
-                    onEditTodo = onEditTodo,
-                    onDeleteTodo = onDeleteTodo,
-                )
+                if (selectedTab == TodoTab.OPEN) {
+                    ReorderableTodoList(
+                        items = listItems,
+                        listState = listState,
+                        onMoveTodo = onMoveTodo,
+                        onToggleTodo = onToggleTodo,
+                        onEditTodo = onEditTodo,
+                        onDeleteTodo = onDeleteTodo,
+                    )
+                } else {
+                    TodoList(
+                        items = listItems,
+                        onToggleTodo = onToggleTodo,
+                        onEditTodo = onEditTodo,
+                        onDeleteTodo = onDeleteTodo,
+                    )
+                }
             }
         }
     }
@@ -163,18 +179,31 @@ fun ToDoScreen(
                         modifier = Modifier.fillMaxWidth(),
                     )
                 },
-                confirmButton = {
-                    Button(onClick = onSaveEdit) {
-                        Text("Speichern")
-                    }
-                },
-                dismissButton = {
-                    OutlinedButton(onClick = onCancelEdit) {
-                        Text("Abbrechen")
-                    }
-                },
+                confirmButton = { Button(onClick = onSaveEdit) { Text("Speichern") } },
+                dismissButton = { OutlinedButton(onClick = onCancelEdit) { Text("Abbrechen") } },
             )
         }
+    }
+}
+
+@Composable
+private fun TabBar(
+    selectedTab: TodoTab,
+    openCount: Int,
+    doneCount: Int,
+    onTabSelected: (TodoTab) -> Unit,
+) {
+    TabRow(selectedTabIndex = selectedTab.ordinal) {
+        Tab(
+            selected = selectedTab == TodoTab.OPEN,
+            onClick = { onTabSelected(TodoTab.OPEN) },
+            text = { Text("Offen ($openCount)") },
+        )
+        Tab(
+            selected = selectedTab == TodoTab.DONE,
+            onClick = { onTabSelected(TodoTab.DONE) },
+            text = { Text("Erledigt ($doneCount)") },
+        )
     }
 }
 
@@ -196,19 +225,11 @@ private fun HeaderCard(openCount: Int, doneCount: Int) {
                         .background(MaterialTheme.colorScheme.primary),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.ListAlt,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onPrimary,
-                    )
+                    Icon(Icons.Default.ListAlt, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary)
                 }
                 Spacer(modifier = Modifier.width(10.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        "Deine Aufgaben",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                    )
+                    Text("Deine Aufgaben", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     Text(
                         "Einfach eintragen, abhaken und bearbeiten.",
                         style = MaterialTheme.typography.bodySmall,
@@ -217,27 +238,15 @@ private fun HeaderCard(openCount: Int, doneCount: Int) {
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                SummaryChip(
-                    label = "Offen",
-                    value = openCount.toString(),
-                    modifier = Modifier.weight(1f),
-                )
-                SummaryChip(
-                    label = "Erledigt",
-                    value = doneCount.toString(),
-                    modifier = Modifier.weight(1f),
-                )
+                SummaryChip(label = "Offen", value = openCount.toString(), modifier = Modifier.weight(1f))
+                SummaryChip(label = "Erledigt", value = doneCount.toString(), modifier = Modifier.weight(1f))
             }
         }
     }
 }
 
 @Composable
-private fun SummaryChip(
-    label: String,
-    value: String,
-    modifier: Modifier,
-) {
+private fun SummaryChip(label: String, value: String, modifier: Modifier) {
     Card(
         modifier = modifier,
         shape = RoundedCornerShape(18.dp),
@@ -295,6 +304,7 @@ private fun ReorderableTodoList(
 
             TodoItemCard(
                 item = item,
+                showDragHandle = true,
                 isDragging = isDragging,
                 dragOffsetY = itemOffset,
                 onToggle = onToggleTodo,
@@ -328,8 +338,38 @@ private fun ReorderableTodoList(
 }
 
 @Composable
+private fun TodoList(
+    items: List<TodoItem>,
+    onToggleTodo: (Long) -> Unit,
+    onEditTodo: (Long) -> Unit,
+    onDeleteTodo: (Long) -> Unit,
+) {
+    LazyColumn(
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier.fillMaxSize(),
+    ) {
+        items(items.size) { index ->
+            val item = items[index]
+            TodoItemCard(
+                item = item,
+                showDragHandle = false,
+                isDragging = false,
+                dragOffsetY = 0,
+                onToggle = onToggleTodo,
+                onEdit = onEditTodo,
+                onDelete = onDeleteTodo,
+                onDragStart = {},
+                onDrag = {},
+                onDragEnd = {},
+            )
+        }
+    }
+}
+
+@Composable
 private fun TodoItemCard(
     item: TodoItem,
+    showDragHandle: Boolean,
     isDragging: Boolean,
     dragOffsetY: Int,
     onToggle: (Long) -> Unit,
@@ -375,41 +415,37 @@ private fun TodoItemCard(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
-            Box(
-                modifier = Modifier
-                    .size(32.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
-                    .pointerInput(item.id) {
-                        detectDragGesturesAfterLongPress(
-                            onDragStart = { onDragStart() },
-                            onDragEnd = { onDragEnd() },
-                            onDragCancel = { onDragEnd() },
-                            onDrag = { change, dragAmount ->
-                                change.consumeAllChanges()
-                                onDrag(dragAmount.y)
-                            },
-                        )
-                    },
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = "⋮⋮",
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+            if (showDragHandle) {
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .pointerInput(item.id) {
+                            detectDragGesturesAfterLongPress(
+                                onDragStart = { onDragStart() },
+                                onDragEnd = { onDragEnd() },
+                                onDragCancel = { onDragEnd() },
+                                onDrag = { change, dragAmount ->
+                                    change.consumeAllChanges()
+                                    onDrag(dragAmount.y)
+                                },
+                            )
+                        },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = "⋮⋮",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Spacer(modifier = Modifier.width(2.dp))
             }
-            Spacer(modifier = Modifier.width(2.dp))
-            IconButton(
-                onClick = { onEdit(item.id) },
-                modifier = Modifier.size(32.dp),
-            ) {
+            IconButton(onClick = { onEdit(item.id) }, modifier = Modifier.size(32.dp)) {
                 Icon(Icons.Filled.Edit, contentDescription = "Bearbeiten", modifier = Modifier.size(18.dp))
             }
-            IconButton(
-                onClick = { onDelete(item.id) },
-                modifier = Modifier.size(32.dp),
-            ) {
+            IconButton(onClick = { onDelete(item.id) }, modifier = Modifier.size(32.dp)) {
                 Icon(Icons.Default.Delete, contentDescription = "Löschen", modifier = Modifier.size(18.dp))
             }
         }
