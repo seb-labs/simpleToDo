@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="simpletodo_primary">#2F6BFF</color>
+    <color name="simpletodo_on_primary">#FFFFFF</color>
+    <color name="simpletodo_primary_container">#DCE7FF</color>
+    <color name="simpletodo_on_primary_container">#0F2B66</color>
+    <color name="simpletodo_secondary">#6C5CE7</color>
+    <color name="simpletodo_background">#F6F8FC</color>
+    <color name="simpletodo_surface">#FFFFFF</color>
+    <color name="simpletodo_surface_variant">#E9EEF8</color>
+    <color name="simpletodo_outline">#C8D1E1</color>
+</resources>
