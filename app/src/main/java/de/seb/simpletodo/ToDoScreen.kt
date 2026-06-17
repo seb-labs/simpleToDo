@@ -63,14 +63,6 @@ fun ToDoScreen(
     val doneCount = state.items.count { it.done }
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("simpleToDo") },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                ),
-            )
-        },
         containerColor = MaterialTheme.colorScheme.background,
     ) { padding ->
         Column(
