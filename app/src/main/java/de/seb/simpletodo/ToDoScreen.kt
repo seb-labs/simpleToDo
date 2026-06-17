@@ -368,17 +368,17 @@ private fun TodoItemCard(
                 text = item.text,
                 modifier = Modifier.weight(1f),
                 style = if (item.done) {
-                    MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
                 } else {
-                    MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium)
+                    MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                 },
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
             Box(
                 modifier = Modifier
-                    .size(44.dp)
-                    .clip(RoundedCornerShape(14.dp))
+                    .size(32.dp)
+                    .clip(RoundedCornerShape(10.dp))
                     .background(MaterialTheme.colorScheme.surfaceVariant)
                     .pointerInput(item.id) {
                         detectDragGesturesAfterLongPress(
@@ -395,16 +395,22 @@ private fun TodoItemCard(
             ) {
                 Text(
                     text = "⋮⋮",
-                    style = MaterialTheme.typography.titleLarge,
+                    style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            Spacer(modifier = Modifier.width(4.dp))
-            IconButton(onClick = { onEdit(item.id) }) {
-                Icon(Icons.Filled.Edit, contentDescription = "Bearbeiten")
+            Spacer(modifier = Modifier.width(2.dp))
+            IconButton(
+                onClick = { onEdit(item.id) },
+                modifier = Modifier.size(32.dp),
+            ) {
+                Icon(Icons.Filled.Edit, contentDescription = "Bearbeiten", modifier = Modifier.size(18.dp))
             }
-            IconButton(onClick = { onDelete(item.id) }) {
-                Icon(Icons.Default.Delete, contentDescription = "Löschen")
+            IconButton(
+                onClick = { onDelete(item.id) },
+                modifier = Modifier.size(32.dp),
+            ) {
+                Icon(Icons.Default.Delete, contentDescription = "Löschen", modifier = Modifier.size(18.dp))
             }
         }
     }
