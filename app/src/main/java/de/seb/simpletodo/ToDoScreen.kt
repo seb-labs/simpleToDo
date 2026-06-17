@@ -34,7 +34,8 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -54,6 +55,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.consumeAllChanges
 import androidx.compose.ui.input.pointer.pointerInput
@@ -63,15 +65,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import kotlin.math.roundToInt
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ToDoScreen(
     state: ToDoUiState,
-    onAddTodo: (String) -> Unit,
+    onAddTodo: (String, Boolean) -> Unit,
     onMoveTodo: (Int, Int) -> Unit,
     onToggleTodo: (Long) -> Unit,
     onEditTodo: (Long) -> Unit,
     onDeleteTodo: (Long) -> Unit,
     onEditTextChange: (String) -> Unit,
+    onEditImportantChange: (Boolean) -> Unit,
     onSaveEdit: () -> Unit,
     onCancelEdit: () -> Unit,
 ) {
@@ -80,6 +84,7 @@ fun ToDoScreen(
     var selectedTab by remember { mutableStateOf(TodoTab.OPEN) }
     var showAddDialog by remember { mutableStateOf(false) }
     var addDraft by remember { mutableStateOf("") }
+    var addImportant by remember { mutableStateOf(false) }
 
     val listItems = when (selectedTab) {
         TodoTab.OPEN -> state.openItems
@@ -142,21 +147,30 @@ fun ToDoScreen(
             onDismissRequest = {
                 showAddDialog = false
                 addDraft = ""
+                addImportant = false
             },
             title = { Text("Aufgabe hinzufügen") },
             text = {
-                OutlinedTextField(
-                    value = addDraft,
-                    onValueChange = { addDraft = it },
-                    label = { Text("To-do") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedTextField(
+                        value = addDraft,
+                        onValueChange = { addDraft = it },
+                        label = { Text("To-do") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    FilterChip(
+                        selected = addImportant,
+                        onClick = { addImportant = !addImportant },
+                        label = { Text("Wichtig") },
+                    )
+                }
             },
             confirmButton = {
                 Button(onClick = {
-                    onAddTodo(addDraft)
+                    onAddTodo(addDraft, addImportant)
                     addDraft = ""
+                    addImportant = false
                     showAddDialog = false
                 }) {
                     Text("Hinzufügen")
@@ -165,6 +179,7 @@ fun ToDoScreen(
             dismissButton = {
                 OutlinedButton(onClick = {
                     addDraft = ""
+                    addImportant = false
                     showAddDialog = false
                 }) {
                     Text("Abbrechen")
@@ -180,13 +195,20 @@ fun ToDoScreen(
                 onDismissRequest = onCancelEdit,
                 title = { Text("Eintrag bearbeiten") },
                 text = {
-                    OutlinedTextField(
-                        value = state.editingText,
-                        onValueChange = onEditTextChange,
-                        label = { Text("Aufgabe") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        OutlinedTextField(
+                            value = state.editingText,
+                            onValueChange = onEditTextChange,
+                            label = { Text("Aufgabe") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        FilterChip(
+                            selected = state.editingImportant,
+                            onClick = { onEditImportantChange(!state.editingImportant) },
+                            label = { Text("Wichtig") },
+                        )
+                    }
                 },
                 confirmButton = { Button(onClick = onSaveEdit) { Text("Speichern") } },
                 dismissButton = { OutlinedButton(onClick = onCancelEdit) { Text("Abbrechen") } },
@@ -195,6 +217,7 @@ fun ToDoScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun TabBar(
     selectedTab: TodoTab,
@@ -385,10 +408,10 @@ private fun TodoItemCard(
             },
         shape = RoundedCornerShape(22.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (item.done) {
-                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f)
-            } else {
-                MaterialTheme.colorScheme.surface
+            containerColor = when {
+                item.important && !item.done -> MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.8f)
+                item.done -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f)
+                else -> MaterialTheme.colorScheme.surface
             },
         ),
     ) {
@@ -398,17 +421,27 @@ private fun TodoItemCard(
         ) {
             Checkbox(checked = item.done, onCheckedChange = { onToggle(item.id) })
             Spacer(modifier = Modifier.width(4.dp))
-            Text(
-                text = item.text,
-                modifier = Modifier.weight(1f),
-                style = if (item.done) {
-                    MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
-                } else {
-                    MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
-                },
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Column(modifier = Modifier.weight(1f)) {
+                if (item.important) {
+                    Text(
+                        text = "WICHTIG",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onTertiaryContainer,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                }
+                Text(
+                    text = item.text,
+                    style = if (item.done) {
+                        MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    } else {
+                        MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                    },
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
             if (showDragHandle) {
                 Box(
                     modifier = Modifier

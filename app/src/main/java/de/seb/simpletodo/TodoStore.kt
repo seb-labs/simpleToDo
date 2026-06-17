@@ -11,7 +11,8 @@ fun todoItemsToJson(items: List<TodoItem>): String {
             JSONObject()
                 .put("id", item.id)
                 .put("text", item.text)
-                .put("done", item.done),
+                .put("done", item.done)
+                .put("important", item.important),
         )
     }
     return array.toString()
@@ -33,6 +34,7 @@ private fun JSONArray.toTodoItems(): List<TodoItem> = buildList {
                 id = obj.optLong("id", System.currentTimeMillis() + index),
                 text = obj.optString("text", "").trim(),
                 done = obj.optBoolean("done", false),
+                important = obj.optBoolean("important", false),
             ),
         )
     }

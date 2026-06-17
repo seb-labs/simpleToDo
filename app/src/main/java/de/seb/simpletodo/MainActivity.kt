@@ -31,6 +31,7 @@ fun SimpleToDoApp(viewModel: ToDoViewModel = viewModel()) {
                 onEditTodo = viewModel::startEditing,
                 onDeleteTodo = viewModel::deleteTodo,
                 onEditTextChange = viewModel::onEditTextChange,
+                onEditImportantChange = viewModel::onEditImportantChange,
                 onSaveEdit = viewModel::saveEdit,
                 onCancelEdit = viewModel::cancelEdit,
             )

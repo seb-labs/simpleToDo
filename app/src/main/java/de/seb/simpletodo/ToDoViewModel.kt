@@ -13,7 +13,7 @@ class ToDoViewModel(application: Application) : AndroidViewModel(application) {
     var state by mutableStateOf(loadState())
         private set
 
-    fun addTodo(text: String) {
+    fun addTodo(text: String, important: Boolean) {
         val cleaned = text.trim()
         if (cleaned.isBlank()) return
 
@@ -22,6 +22,7 @@ class ToDoViewModel(application: Application) : AndroidViewModel(application) {
                 id = System.currentTimeMillis(),
                 text = cleaned,
                 done = false,
+                important = important,
             ),
         ) + state.openItems + state.doneItems
 
@@ -67,11 +68,19 @@ class ToDoViewModel(application: Application) : AndroidViewModel(application) {
 
     fun startEditing(id: Long) {
         val item = state.items.firstOrNull { it.id == id } ?: return
-        state = state.copy(editingId = id, editingText = item.text)
+        state = state.copy(
+            editingId = id,
+            editingText = item.text,
+            editingImportant = item.important,
+        )
     }
 
     fun onEditTextChange(value: String) {
         state = state.copy(editingText = value)
+    }
+
+    fun onEditImportantChange(value: Boolean) {
+        state = state.copy(editingImportant = value)
     }
 
     fun saveEdit() {
@@ -81,14 +90,18 @@ class ToDoViewModel(application: Application) : AndroidViewModel(application) {
 
         updateItems(
             state.items.map { item ->
-                if (item.id == editingId) item.copy(text = text) else item
+                if (item.id == editingId) {
+                    item.copy(text = text, important = state.editingImportant)
+                } else {
+                    item
+                }
             },
         )
         cancelEdit()
     }
 
     fun cancelEdit() {
-        state = state.copy(editingId = null, editingText = "")
+        state = state.copy(editingId = null, editingText = "", editingImportant = false)
     }
 
     private fun updateItems(items: List<TodoItem>) {

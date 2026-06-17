@@ -9,12 +9,14 @@ data class TodoItem(
     val id: Long,
     val text: String,
     val done: Boolean = false,
+    val important: Boolean = false,
 )
 
 data class ToDoUiState(
     val items: List<TodoItem> = emptyList(),
     val editingId: Long? = null,
     val editingText: String = "",
+    val editingImportant: Boolean = false,
 ) {
     val openItems: List<TodoItem>
         get() = items.filterNot { it.done }
