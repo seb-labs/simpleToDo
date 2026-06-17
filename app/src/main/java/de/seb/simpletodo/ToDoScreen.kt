@@ -348,17 +348,6 @@ private fun TodoItemCard(
             .graphicsLayer {
                 translationY = dragOffsetY.toFloat()
                 shadowElevation = elevation
-            }
-            .pointerInput(item.id) {
-                detectDragGesturesAfterLongPress(
-                    onDragStart = { onDragStart() },
-                    onDragEnd = { onDragEnd() },
-                    onDragCancel = { onDragEnd() },
-                    onDrag = { change, dragAmount ->
-                        change.consumeAllChanges()
-                        onDrag(dragAmount.y)
-                    },
-                )
             },
         shape = RoundedCornerShape(22.dp),
         colors = CardDefaults.cardColors(
@@ -386,12 +375,31 @@ private fun TodoItemCard(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
-            Text(
-                text = "⠿",
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 4.dp),
-            )
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .pointerInput(item.id) {
+                        detectDragGesturesAfterLongPress(
+                            onDragStart = { onDragStart() },
+                            onDragEnd = { onDragEnd() },
+                            onDragCancel = { onDragEnd() },
+                            onDrag = { change, dragAmount ->
+                                change.consumeAllChanges()
+                                onDrag(dragAmount.y)
+                            },
+                        )
+                    },
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = "⋮⋮",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Spacer(modifier = Modifier.width(4.dp))
             IconButton(onClick = { onEdit(item.id) }) {
                 Icon(Icons.Filled.Edit, contentDescription = "Bearbeiten")
             }
