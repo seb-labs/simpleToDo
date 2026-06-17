@@ -222,19 +222,22 @@ private fun AddTodoCard(
     ) {
         Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Text("Neue Aufgabe", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-                OutlinedTextField(
-                    value = value,
-                    onValueChange = onValueChange,
-                    modifier = Modifier.weight(1f),
-                    label = { Text("To-do eingeben") },
-                    singleLine = true,
-                )
-                Button(onClick = onAddTodo, modifier = Modifier.height(56.dp)) {
-                    Icon(Icons.Default.Add, contentDescription = null)
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Hinzu")
-                }
+            OutlinedTextField(
+                value = value,
+                onValueChange = onValueChange,
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("To-do eingeben") },
+                singleLine = true,
+            )
+            Button(
+                onClick = onAddTodo,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+            ) {
+                Icon(Icons.Default.Add, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Aufgabe hinzufügen")
             }
         }
     }
