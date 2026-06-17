@@ -87,7 +87,17 @@ fun ToDoScreen(
     }
     val listState = rememberLazyListState()
 
-    Scaffold(containerColor = MaterialTheme.colorScheme.background) { padding ->
+    Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
+        bottomBar = {
+            AddTodoButton(
+                onClick = { showAddDialog = true },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+            )
+        },
+    ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -96,7 +106,6 @@ fun ToDoScreen(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             HeaderCard()
-            AddTodoButton(onClick = { showAddDialog = true })
             TabBar(
                 selectedTab = selectedTab,
                 openCount = openCount,
@@ -242,11 +251,13 @@ private fun HeaderCard() {
 }
 
 @Composable
-private fun AddTodoButton(onClick: () -> Unit) {
+private fun AddTodoButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Button(
         onClick = onClick,
-        modifier = Modifier
-            .fillMaxWidth()
+        modifier = modifier
             .height(52.dp),
     ) {
         Icon(Icons.Default.Add, contentDescription = null)
