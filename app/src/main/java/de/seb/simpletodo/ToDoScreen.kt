@@ -218,10 +218,11 @@ private fun TabBar(
 
 @Composable
 private fun HeaderCard() {
-    ElevatedCard(
+    Card(
         shape = RoundedCornerShape(22.dp),
-        colors = CardDefaults.elevatedCardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.72f),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
         ),
         modifier = Modifier.fillMaxWidth(),
     ) {
