@@ -95,7 +95,7 @@ fun ToDoScreen(
                 .padding(horizontal = 14.dp, vertical = 6.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            HeaderCard(openCount = openCount, doneCount = doneCount)
+            HeaderCard()
             AddTodoButton(onClick = { showAddDialog = true })
             TabBar(
                 selectedTab = selectedTab,
@@ -208,7 +208,7 @@ private fun TabBar(
 }
 
 @Composable
-private fun HeaderCard(openCount: Int, doneCount: Int) {
+private fun HeaderCard() {
     ElevatedCard(
         shape = RoundedCornerShape(22.dp),
         colors = CardDefaults.elevatedCardColors(
@@ -237,24 +237,6 @@ private fun HeaderCard(openCount: Int, doneCount: Int) {
                     )
                 }
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                SummaryChip(label = "Offen", value = openCount.toString(), modifier = Modifier.weight(1f))
-                SummaryChip(label = "Erledigt", value = doneCount.toString(), modifier = Modifier.weight(1f))
-            }
-        }
-    }
-}
-
-@Composable
-private fun SummaryChip(label: String, value: String, modifier: Modifier) {
-    Card(
-        modifier = modifier,
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f)),
-    ) {
-        Column(modifier = Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         }
     }
 }
