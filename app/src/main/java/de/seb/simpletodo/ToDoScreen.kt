@@ -1,6 +1,8 @@
 package de.seb.simpletodo
 
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,7 +17,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -37,26 +41,36 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.consumeAllChanges
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
+import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 @Composable
 fun ToDoScreen(
     state: ToDoUiState,
-    onAddTextChange: (String) -> Unit,
-    onAddTodo: () -> Unit,
-    onSortOrderChange: (SortOrder) -> Unit,
+    onAddTodo: (String) -> Unit,
+    onMoveTodo: (Int, Int) -> Unit,
     onToggleTodo: (Long) -> Unit,
     onEditTodo: (Long) -> Unit,
     onDeleteTodo: (Long) -> Unit,
@@ -66,6 +80,9 @@ fun ToDoScreen(
 ) {
     val openCount = state.items.count { !it.done }
     val doneCount = state.items.count { it.done }
+    val listState = rememberLazyListState()
+    var showAddDialog by remember { mutableStateOf(false) }
+    var addDraft by remember { mutableStateOf("") }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -75,37 +92,60 @@ fun ToDoScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .padding(horizontal = 14.dp, vertical = 6.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             HeaderCard(openCount = openCount, doneCount = doneCount)
-            SortControl(
-                current = state.sortOrder,
-                onSortOrderChange = onSortOrderChange,
-            )
-            AddTodoCard(
-                value = state.newTodoText,
-                onValueChange = onAddTextChange,
-                onAddTodo = onAddTodo,
-            )
+            AddTodoButton(onClick = { showAddDialog = true })
 
             if (state.items.isEmpty()) {
                 EmptyStateCard()
             } else {
-                LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                    modifier = Modifier.fillMaxSize(),
-                ) {
-                    items(state.sortedItems, key = { it.id }) { item ->
-                        TodoItemCard(
-                            item = item,
-                            onToggle = onToggleTodo,
-                            onEdit = onEditTodo,
-                            onDelete = onDeleteTodo,
-                        )
-                    }
-                }
+                ReorderableTodoList(
+                    items = state.items,
+                    listState = listState,
+                    onMoveTodo = onMoveTodo,
+                    onToggleTodo = onToggleTodo,
+                    onEditTodo = onEditTodo,
+                    onDeleteTodo = onDeleteTodo,
+                )
             }
         }
+    }
+
+    if (showAddDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showAddDialog = false
+                addDraft = ""
+            },
+            title = { Text("Aufgabe hinzufügen") },
+            text = {
+                OutlinedTextField(
+                    value = addDraft,
+                    onValueChange = { addDraft = it },
+                    label = { Text("To-do") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            },
+            confirmButton = {
+                Button(onClick = {
+                    onAddTodo(addDraft)
+                    addDraft = ""
+                    showAddDialog = false
+                }) {
+                    Text("Hinzufügen")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = {
+                    addDraft = ""
+                    showAddDialog = false
+                }) {
+                    Text("Abbrechen")
+                }
+            },
+        )
     }
 
     state.editingId?.let { editingId ->
@@ -211,101 +251,78 @@ private fun SummaryChip(
 }
 
 @Composable
-private fun SortControl(
-    current: SortOrder,
-    onSortOrderChange: (SortOrder) -> Unit,
-) {
-    var expanded by remember { mutableStateOf(false) }
-
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
+private fun AddTodoButton(onClick: () -> Unit) {
+    Button(
+        onClick = onClick,
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(52.dp),
     ) {
-        Text(
-            text = "Sortierung",
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Spacer(modifier = Modifier.width(10.dp))
-        Box {
-            OutlinedButton(
-                onClick = { expanded = true },
-                modifier = Modifier.heightIn(min = 36.dp),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-            ) {
-                Text(
-                    text = current.label,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            DropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { expanded = false },
-            ) {
-                SortOrder.entries.forEach { order ->
-                    DropdownMenuItem(
-                        text = { Text(order.label) },
-                        onClick = {
-                            onSortOrderChange(order)
-                            expanded = false
-                        },
-                    )
-                }
-            }
-        }
+        Icon(Icons.Default.Add, contentDescription = null)
+        Spacer(modifier = Modifier.width(8.dp))
+        Text("Aufgabe hinzufügen")
     }
 }
 
 @Composable
-private fun AddTodoCard(
-    value: String,
-    onValueChange: (String) -> Unit,
-    onAddTodo: () -> Unit,
+private fun ReorderableTodoList(
+    items: List<TodoItem>,
+    listState: LazyListState,
+    onMoveTodo: (Int, Int) -> Unit,
+    onToggleTodo: (Long) -> Unit,
+    onEditTodo: (Long) -> Unit,
+    onDeleteTodo: (Long) -> Unit,
 ) {
-    Card(
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        modifier = Modifier.fillMaxWidth(),
+    var draggingItemId by remember { mutableStateOf<Long?>(null) }
+    var draggingIndex by remember { mutableStateOf<Int?>(null) }
+    var draggedDistance by remember { mutableFloatStateOf(0f) }
+
+    LaunchedEffect(items) {
+        if (draggingItemId != null) {
+            val currentId = draggingItemId
+            draggingIndex = items.indexOfFirst { it.id == currentId }.takeIf { it >= 0 }
+        }
+    }
+
+    LazyColumn(
+        state = listState,
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier.fillMaxSize(),
     ) {
-        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("Neue Aufgabe", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            OutlinedTextField(
-                value = value,
-                onValueChange = onValueChange,
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("To-do eingeben") },
-                singleLine = true,
+        itemsIndexed(items, key = { _, item -> item.id }) { index, item ->
+            val isDragging = draggingItemId == item.id
+            val itemOffset = if (isDragging) draggedDistance.roundToInt() else 0
+
+            TodoItemCard(
+                item = item,
+                isDragging = isDragging,
+                dragOffsetY = itemOffset,
+                onToggle = onToggleTodo,
+                onEdit = onEditTodo,
+                onDelete = onDeleteTodo,
+                onDragStart = {
+                    draggingItemId = item.id
+                    draggingIndex = index
+                    draggedDistance = 0f
+                },
+                onDrag = { dragAmount ->
+                    val currentIndex = draggingIndex ?: return@TodoItemCard
+                    draggedDistance += dragAmount
+                    val draggedInfo = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == currentIndex } ?: return@TodoItemCard
+                    val draggedCenter = draggedInfo.offset + draggedInfo.size / 2 + draggedDistance
+                    val target = listState.layoutInfo.visibleItemsInfo.firstOrNull { info ->
+                        info.index != currentIndex && draggedCenter > info.offset && draggedCenter < info.offset + info.size
+                    } ?: return@TodoItemCard
+                    onMoveTodo(currentIndex, target.index)
+                    draggingIndex = target.index
+                    draggedDistance = 0f
+                },
+                onDragEnd = {
+                    draggingItemId = null
+                    draggingIndex = null
+                    draggedDistance = 0f
+                },
             )
-            Button(
-                onClick = onAddTodo,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(54.dp),
-            ) {
-                Icon(Icons.Default.Add, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Aufgabe hinzufügen")
-            }
-        }
-    }
-}
-
-@Composable
-private fun EmptyStateCard() {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)),
-    ) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-            Text("Noch keine Aufgaben", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            Text("Trag oben einfach den ersten Punkt ein.", color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -313,12 +330,36 @@ private fun EmptyStateCard() {
 @Composable
 private fun TodoItemCard(
     item: TodoItem,
+    isDragging: Boolean,
+    dragOffsetY: Int,
     onToggle: (Long) -> Unit,
     onEdit: (Long) -> Unit,
     onDelete: (Long) -> Unit,
+    onDragStart: () -> Unit,
+    onDrag: (Float) -> Unit,
+    onDragEnd: () -> Unit,
 ) {
+    val elevation by animateFloatAsState(if (isDragging) 8f else 0f, label = "drag_elevation")
+
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .zIndex(if (isDragging) 1f else 0f)
+            .graphicsLayer {
+                translationY = dragOffsetY.toFloat()
+                shadowElevation = elevation
+            }
+            .pointerInput(item.id) {
+                detectDragGesturesAfterLongPress(
+                    onDragStart = { onDragStart() },
+                    onDragEnd = { onDragEnd() },
+                    onDragCancel = { onDragEnd() },
+                    onDrag = { change, dragAmount ->
+                        change.consumeAllChanges()
+                        onDrag(dragAmount.y)
+                    },
+                )
+            },
         shape = RoundedCornerShape(22.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (item.done) {
@@ -345,12 +386,37 @@ private fun TodoItemCard(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
+            Text(
+                text = "⠿",
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 4.dp),
+            )
             IconButton(onClick = { onEdit(item.id) }) {
                 Icon(Icons.Filled.Edit, contentDescription = "Bearbeiten")
             }
             IconButton(onClick = { onDelete(item.id) }) {
                 Icon(Icons.Default.Delete, contentDescription = "Löschen")
             }
+        }
+    }
+}
+
+@Composable
+private fun EmptyStateCard() {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)),
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            Text("Noch keine Aufgaben", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Text("Trag oben einfach den ersten Punkt ein.", color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

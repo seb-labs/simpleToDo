@@ -4,38 +4,26 @@ import org.json.JSONArray
 import org.json.JSONObject
 import org.json.JSONTokener
 
-fun todoStateToJson(state: ToDoUiState): String {
-    val items = JSONArray()
-    state.items.forEach { item ->
-        items.put(
+fun todoItemsToJson(items: List<TodoItem>): String {
+    val array = JSONArray()
+    items.forEach { item ->
+        array.put(
             JSONObject()
                 .put("id", item.id)
                 .put("text", item.text)
                 .put("done", item.done),
         )
     }
-
-    return JSONObject()
-        .put("sortOrder", state.sortOrder.name)
-        .put("items", items)
-        .toString()
+    return array.toString()
 }
 
-fun todoStateFromJson(raw: String): ToDoUiState = runCatching {
+fun todoItemsFromJson(raw: String): List<TodoItem> = runCatching {
     when (val parsed = JSONTokener(raw).nextValue()) {
-        is JSONArray -> ToDoUiState(
-            items = parsed.toTodoItems(),
-            sortOrder = SortOrder.NEWEST,
-        )
-
-        is JSONObject -> ToDoUiState(
-            items = parsed.optJSONArray("items")?.toTodoItems().orEmpty(),
-            sortOrder = SortOrder.fromStoredName(parsed.optString("sortOrder", SortOrder.NEWEST.name)),
-        )
-
-        else -> ToDoUiState()
+        is JSONArray -> parsed.toTodoItems()
+        is JSONObject -> parsed.optJSONArray("items")?.toTodoItems().orEmpty()
+        else -> emptyList()
     }
-}.getOrDefault(ToDoUiState())
+}.getOrDefault(emptyList())
 
 private fun JSONArray.toTodoItems(): List<TodoItem> = buildList {
     for (index in 0 until length()) {

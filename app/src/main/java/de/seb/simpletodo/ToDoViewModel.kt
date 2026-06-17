@@ -13,39 +13,42 @@ class ToDoViewModel(application: Application) : AndroidViewModel(application) {
     var state by mutableStateOf(loadState())
         private set
 
-    fun onAddTextChange(value: String) {
-        state = state.copy(newTodoText = value)
-    }
-
-    fun onSortOrderChange(sortOrder: SortOrder) {
-        state = state.copy(sortOrder = sortOrder)
-        persist(state)
-    }
-
-    fun addTodo() {
-        val text = state.newTodoText.trim()
-        if (text.isBlank()) return
+    fun addTodo(text: String) {
+        val cleaned = text.trim()
+        if (cleaned.isBlank()) return
 
         val nextItems = listOf(
             TodoItem(
                 id = System.currentTimeMillis(),
-                text = text,
+                text = cleaned,
                 done = false,
             ),
         ) + state.items
 
-        state = state.copy(items = nextItems, newTodoText = "")
-        persist(state)
+        state = state.copy(items = nextItems)
+        persist(nextItems)
+    }
+
+    fun moveTodo(fromIndex: Int, toIndex: Int) {
+        if (fromIndex == toIndex) return
+        val items = state.items.toMutableList()
+        if (fromIndex !in items.indices || toIndex !in items.indices) return
+
+        val item = items.removeAt(fromIndex)
+        items.add(toIndex, item)
+        updateItems(items)
     }
 
     fun toggleTodo(id: Long) {
-        updateItems { items ->
-            items.map { item -> if (item.id == id) item.copy(done = !item.done) else item }
-        }
+        updateItems(
+            state.items.map { item ->
+                if (item.id == id) item.copy(done = !item.done) else item
+            },
+        )
     }
 
     fun deleteTodo(id: Long) {
-        updateItems { items -> items.filterNot { it.id == id } }
+        updateItems(state.items.filterNot { it.id == id })
         if (state.editingId == id) {
             cancelEdit()
         }
@@ -65,9 +68,11 @@ class ToDoViewModel(application: Application) : AndroidViewModel(application) {
         val text = state.editingText.trim()
         if (text.isBlank()) return
 
-        updateItems { items ->
-            items.map { item -> if (item.id == editingId) item.copy(text = text) else item }
-        }
+        updateItems(
+            state.items.map { item ->
+                if (item.id == editingId) item.copy(text = text) else item
+            },
+        )
         cancelEdit()
     }
 
@@ -75,20 +80,19 @@ class ToDoViewModel(application: Application) : AndroidViewModel(application) {
         state = state.copy(editingId = null, editingText = "")
     }
 
-    private fun updateItems(transform: (List<TodoItem>) -> List<TodoItem>) {
-        val next = transform(state.items)
-        state = state.copy(items = next)
-        persist(state)
+    private fun updateItems(items: List<TodoItem>) {
+        state = state.copy(items = items)
+        persist(items)
     }
 
     private fun loadState(): ToDoUiState = runCatching {
         if (!storeFile.exists()) return ToDoUiState()
-        todoStateFromJson(storeFile.readText())
+        ToDoUiState(items = todoItemsFromJson(storeFile.readText()))
     }.getOrDefault(ToDoUiState())
 
-    private fun persist(state: ToDoUiState) {
+    private fun persist(items: List<TodoItem>) {
         runCatching {
-            storeFile.writeText(todoStateToJson(state))
+            storeFile.writeText(todoItemsToJson(items))
         }
     }
 

@@ -25,9 +25,8 @@ fun SimpleToDoApp(viewModel: ToDoViewModel = viewModel()) {
         Surface(modifier = Modifier.fillMaxSize()) {
             ToDoScreen(
                 state = viewModel.state,
-                onAddTextChange = viewModel::onAddTextChange,
                 onAddTodo = viewModel::addTodo,
-                onSortOrderChange = viewModel::onSortOrderChange,
+                onMoveTodo = viewModel::moveTodo,
                 onToggleTodo = viewModel::toggleTodo,
                 onEditTodo = viewModel::startEditing,
                 onDeleteTodo = viewModel::deleteTodo,
