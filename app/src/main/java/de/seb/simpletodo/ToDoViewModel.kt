@@ -10,25 +10,32 @@ import java.io.File
 class ToDoViewModel(application: Application) : AndroidViewModel(application) {
     private val storeFile = File(application.filesDir, STORE_FILE_NAME)
 
-    var state by mutableStateOf(ToDoUiState(items = loadItems()))
+    var state by mutableStateOf(loadState())
         private set
 
     fun onAddTextChange(value: String) {
         state = state.copy(newTodoText = value)
     }
 
+    fun onSortOrderChange(sortOrder: SortOrder) {
+        state = state.copy(sortOrder = sortOrder)
+        persist(state)
+    }
+
     fun addTodo() {
         val text = state.newTodoText.trim()
         if (text.isBlank()) return
-        val next = listOf(
+
+        val nextItems = listOf(
             TodoItem(
                 id = System.currentTimeMillis(),
                 text = text,
                 done = false,
             ),
         ) + state.items
-        state = state.copy(items = next, newTodoText = "")
-        persist(next)
+
+        state = state.copy(items = nextItems, newTodoText = "")
+        persist(state)
     }
 
     fun toggleTodo(id: Long) {
@@ -57,6 +64,7 @@ class ToDoViewModel(application: Application) : AndroidViewModel(application) {
         val editingId = state.editingId ?: return
         val text = state.editingText.trim()
         if (text.isBlank()) return
+
         updateItems { items ->
             items.map { item -> if (item.id == editingId) item.copy(text = text) else item }
         }
@@ -70,17 +78,17 @@ class ToDoViewModel(application: Application) : AndroidViewModel(application) {
     private fun updateItems(transform: (List<TodoItem>) -> List<TodoItem>) {
         val next = transform(state.items)
         state = state.copy(items = next)
-        persist(next)
+        persist(state)
     }
 
-    private fun loadItems(): List<TodoItem> = runCatching {
-        if (!storeFile.exists()) return emptyList()
-        todoItemsFromJson(storeFile.readText())
-    }.getOrDefault(emptyList())
+    private fun loadState(): ToDoUiState = runCatching {
+        if (!storeFile.exists()) return ToDoUiState()
+        todoStateFromJson(storeFile.readText())
+    }.getOrDefault(ToDoUiState())
 
-    private fun persist(items: List<TodoItem>) {
+    private fun persist(state: ToDoUiState) {
         runCatching {
-            storeFile.writeText(todoItemsToJson(items))
+            storeFile.writeText(todoStateToJson(state))
         }
     }
 

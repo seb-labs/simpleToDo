@@ -27,6 +27,7 @@ fun SimpleToDoApp(viewModel: ToDoViewModel = viewModel()) {
                 state = viewModel.state,
                 onAddTextChange = viewModel::onAddTextChange,
                 onAddTodo = viewModel::addTodo,
+                onSortOrderChange = viewModel::onSortOrderChange,
                 onToggleTodo = viewModel::toggleTodo,
                 onEditTodo = viewModel::startEditing,
                 onDeleteTodo = viewModel::deleteTodo,
