@@ -12,6 +12,11 @@ Eine einfache To-do-App auf Deutsch für Android.
 - hübsches, aufgeräumtes Material-Design
 - lokale Speicherung auf dem Gerät
 
+## Download
+Die aktuelle APK findest du hier:
+
+- [simpleToDo-release.apk](https://github.com/seb-labs/simpleToDo/releases/latest/download/simpleToDo-release.apk)
+
 ## Screenshots
 
 <p align="center">
